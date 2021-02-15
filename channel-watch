@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# get the channel in use
+INTERFACE="$(cat < /proc/net/wireless | awk '{print $1}' | tail -n1 | tr -d .:)"
+
+# wifi active?
+if [ "$INTERFACE" == "face" ];
+then
+  echo "Wifi interface is inactive.  Exiting."
+  exit 0
+fi
+
+# get nearby channel usage
+CHANNEL="$(/sbin/iw dev "$INTERFACE" info | grep channel | awk '{print $2}')"
+
+# iw scan needs elevation to scan, so nmcli is better to use, otherwise you have an equal amount of work to do to
+# pass info to the userspace from root and/or specify sudo privs in visudo
+#
+# get a channel list into an array (needs work)
+IFS=$'\n'
+declare -a CHAN=($(nmcli -f chan dev wifi list | sort | uniq -c))
+
+# isolate the active usage
+for ACTIVE_CHANNEL in "${CHAN[@]}"
+do
+  if [[ $ACTIVE_CHANNEL =~ $CHANNEL ]];
+  then
+    # isolate the total on the active channel
+    TOTAL_ACTIVE=$(echo "$ACTIVE_CHANNEL" | awk '{print $1}')
+  fi
+done
+
+# check for notify-send and send a notification to the user
+if [ "$TOTAL_ACTIVE" -gt 1 ] && [ -f /usr/bin/notify-send ];
+then
+  notify-send -i gnome-warning "Wifi Channel Not Optimal" \
+  -u critical \
+  "$TOTAL_ACTIVE neighboring APs on channel $CHANNEL"
+fi
