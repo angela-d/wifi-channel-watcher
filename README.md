@@ -25,7 +25,7 @@ Quick script to assess channel usage of neighboring routers / access points and 
 
   with the following:
   ```bash
-  */10 * * * * /your/directory/path/to/wifi-channel-watcher
+  */10 * * * * /your/directory/path/to/wifi-channel-watcher/channel-watch
   ```
   (be sure to modify `/your/directory/path/to` to match your local path to where you cloned this repo)
 
@@ -33,5 +33,5 @@ That's it.
 
 You can manually run the script any time via command-line:
 ```bash
-/your/directory/path/to/wifi-channel-watcher
+/your/directory/path/to/wifi-channel-watcher/channel-watch
 ```
