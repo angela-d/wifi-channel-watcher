@@ -98,7 +98,6 @@ then
   then
     # redundant loop; merge with CHAN at some point
     declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wifi list | awk -v CHANNEL="$CHANNEL" -v ME="$ME" '$1 != ME && $3 == CHANNEL'))
-#  declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wifi list | awk -v CHANNEL=$CHANNEL '$3 == CHANNEL'))
 
     for NEIGHBOR in "${DETAILED[@]}"
     do
@@ -109,8 +108,7 @@ then
       # get the router manufacturer
       BSSID=$(macsearch "$BSSID")
       BARS="$(printf "%s" "$NEIGHBOR" | awk '{ print $4 }')"
-    #  [[ $INTERNAL_CONN == "yes" ]] && AP_NAME=$(apsearch $BSSID) || AP_NAME=""
-    [[ $INTERNAL_CONN == "yes" ]] && AP_NAME="$(apsearch '55:51:11:22:23:33')\\n" || AP_NAME=""
+      [[ "$INTERNAL_CONN" == "yes" ]] && AP_NAME=$(apsearch "$BSSID") || AP_NAME=""
 
       BSSID_DETAIL+="\\n$BARS $SSID - $BSSID\\n$AP_NAME"
     done
