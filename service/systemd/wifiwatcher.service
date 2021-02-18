@@ -1,0 +1,10 @@
+[Unit]
+Description=Wifi channel watcher
+ConditionPathExists=SERVICE_PATH
+After=network.target
+
+[Service]
+ExecStart=SERVICE_PATH
+
+[Install]
+WantedBy=default.target

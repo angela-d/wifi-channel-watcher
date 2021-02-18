@@ -38,17 +38,6 @@ Additional options:
   git clone https://github.com/angela-d/wifi-channel-watcher.git
   ```
 
-2. Set up a cron to run every 10 minutes (adjust to suit)
-  ```bash
-  crontab -e
-  ```
-
-  with the following:
-  ```bash
-  */10 * * * * /your/directory/path/to/wifi-channel-watcher/channel-watch
-  ```
-  (be sure to modify `/your/directory/path/to` to match the local path you cloned this repo to)
-
 That's it.
 
 You can manually run the script any time via command-line:
@@ -58,6 +47,14 @@ You can manually run the script any time via command-line:
 
 ## Customizing
 All customizations are optional, in most cases, the script will work out of the box.
+
+**Caveat:** When running via cron, you need to import your display environment, or the notification will never show.
+- If you're running systemd, you can run the script with the `installservice` argument to set up a user service.  
+The plus side of the systemd service method, is you don't need to worry about importing any display stuff; the script runs as a service under your user on a timer (systemd-style cron)
+  - Like so:
+  ```bash
+  /your/directory/path/to/wifi-channel-watcher/channel-watch installservice
+  ```
 
 Config options are in the top of the script, `channel-watch`
 - **DISPLAY_CHANNEL_BSSID** = Turn the BSSID, bars and manufacturer info on or off
@@ -76,3 +73,5 @@ Config options are in the top of the script, `channel-watch`
   - Main folder (see [icon.svg](icon.svg))
   - After first run, the icon is copied to: `~/.config/wifi-channel-watcher/icon.svg` -- this is the one you'd want to replace for an immediate change; otherwise, the icon in the root directory only copies over once the `~/.config/wifi-channel-watcher/` folder isn't detected
   - Overall text, image and appearance of the notification will vary depending on what desktop theme you're using
+- **DEBUG** = Will be noisy when set to `1`, after testing, set back to `0`
+- **DEBUG_PATH** = Path for the debug output to write to

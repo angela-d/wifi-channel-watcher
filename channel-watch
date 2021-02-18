@@ -9,8 +9,10 @@ MAC_LIST=""
 AP_LIST=""
 # a resource only accessible from within your enterprise network, for access point bssid caching
 INTERNAL_CHECK=""
-
+DEBUG="1"
+DEBUG_PATH="/home/angela/Desktop/debug.txt"
 ## end config
+
 # get the channel in use
 INTERFACE="$(cat < /proc/net/wireless | awk '{print $1}' | tail -n1 | tr -d .:)"
 
@@ -18,12 +20,29 @@ INTERFACE="$(cat < /proc/net/wireless | awk '{print $1}' | tail -n1 | tr -d .:)"
 if [ "$INTERFACE" == "face" ];
 then
   echo "Wifi interface is inactive.  Exiting."
+  [ "$DEBUG" == "1" ] && debug "0" "Interface: $INTERFACE triggered."
   exit 0
 fi
+
+function debug() {
+  if [ "$1" == "1" ];
+  then
+    STATE="INFO"
+  elif [ "$1" == "2" ];
+  then
+    STATE="TEST"
+  else
+    STATE="WARN"
+  fi
+  echo "$STATE: $(date) $2" >> "$DEBUG_PATH"
+}
+
+[ "$DEBUG" == "1" ] && debug "1" "-- Start of debug for this run --"
 
 # check if internal resources are accessible, general local cache
 [[ ! $INTERNAL_CHECK == ""  && "$(ping -c 1 "$INTERNAL_CHECK")" ]] && INTERNAL_CONN="yes" || INTERNAL_CONN=""
 [[ ! -d ~/.config/wifi-channel-watcher/ ]] && mkdir -p ~/.config/wifi-channel-watcher/ && cp icon.svg ~/.config/wifi-channel-watcher/
+[ "$DEBUG" == "1" ] && debug "1" "Internal connection value (empty = unmet): $INTERNAL_CONN"
 
 # MAC address lookup vendor
 function macsearch() {
@@ -63,12 +82,14 @@ function apsearch() {
     AP=$(curl -sS "$AP_LIST" | grep -i "$AP" | head -n1 | awk '{ print $1 }')
 
     echo "$AP"
+    [ "$DEBUG" == "1" ] && debug "1" "apsearch function reached. AP: $AP"
   fi
 }
 
 # get nearby channel usage
 ME="$(/sbin/iwgetid -r)"
 CHANNEL="$(/sbin/iw dev "$INTERFACE" info | grep channel | awk '{print $2}')"
+[ "$DEBUG" == "1" ] && debug "1" "My SSID: $ME - Channel: $CHANNEL"
 
 # iw scan needs elevation to scan, so nmcli is better to use, otherwise you have an equal amount of work to do to
 # pass info to the userspace from root and/or specify sudo privs in visudo
@@ -76,6 +97,7 @@ CHANNEL="$(/sbin/iw dev "$INTERFACE" info | grep channel | awk '{print $2}')"
 # get a channel list into an array (needs work)
 IFS=$'\n'
 declare -a CHAN=($(nmcli -f chan dev wifi list | sort | uniq -c))
+[ "$DEBUG" == "1" ] && debug "2" "Unprocessed query: $(nmcli -f chan dev wifi list | sort | uniq -c)"
 
 # isolate the active usage
 for ACTIVE_CHANNEL in "${CHAN[@]}"
@@ -86,16 +108,19 @@ do
     TOTAL_ACTIVE=$(echo "$ACTIVE_CHANNEL" | awk '{print $1}')
     # it will always be +1 because of me, so subtract
     TOTAL_ACTIVE=$((TOTAL_ACTIVE-1))
+    [ "$DEBUG" == "1" ] && debug "1" "On my channel (incl me) extract: $ACTIVE_CHANNEL"
   fi
 done
 
+[ "$DEBUG" == "1" ] && debug "1" "Total on my channel (excl me): $TOTAL_ACTIVE"
 # check for notify-send and send a notification to the user
 if [ "$TOTAL_ACTIVE" -gt 0 ] && [ -f /usr/bin/notify-send ];
 then
-
+  [ "$DEBUG" == "1" ] && debug "1" "/usr/bin/notify-send exists"
   # display the ssid, if enabled
   if [ "$DISPLAY_CHANNEL_BSSID" == "1" ];
   then
+    [ "$DEBUG" == "1" ] && debug "1" "DISPLAY_CHANNEL_BSSID is true"
     # redundant loop; merge with CHAN at some point
     declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wifi list | awk -v CHANNEL="$CHANNEL" -v ME="$ME" '$1 != ME && $3 == CHANNEL'))
 
@@ -111,15 +136,40 @@ then
       [[ "$INTERNAL_CONN" == "yes" ]] && AP_NAME=$(apsearch "$BSSID") || AP_NAME=""
 
       BSSID_DETAIL+="\\n$BARS $SSID - $BSSID\\n$AP_NAME"
+      [ "$DEBUG" == "1" ] && debug "1" "BSSID DETAIL: $BSSID_DETAIL"
     done
   else
+    [ "$DEBUG" == "1" ] && debug "1" "WARN: DISPLAY_CHANNEL_BSSID is false, or notify-send not seen"
     BSSID_DETAIL=""
   fi
 
   # format the message to prevent notify-send from throwing errors
   PROMPT="$TOTAL_ACTIVE neighboring APs also on channel $CHANNEL\\n$BSSID_DETAIL"
+  [ "$DEBUG" == "1" ] && debug "1" "Prompt output: $PROMPT"
 
   # send the notification
   notify-send -i ~/.config/wifi-channel-watcher/icon.svg "Wifi Channel Not Optimal" \
   -u critical \ "$PROMPT"
+fi
+
+[ "$DEBUG" == "1" ] && debug "1" "INFO: -- End of debug for this run --"
+
+if [ "$1" == "installservice" ];
+then
+  # checking for systemd
+  echo "Checking for systemd..."
+  if [ -f /usr/lib/systemd ];
+  then
+    echo "Found.  Creating systemd service directory..."
+    [ ! -d ~/.config/systemd/user/ ] && mkdir -p ~/.config/systemd/user/
+    [ -f "$PWD/service/systemd/wifiwatcher.service" ] && cp "$PWD/service/systemd/wifiwatcher.service" ~/.config/systemd/user/wifiwatcher.service && echo "Unit file added." || echo "ERROR: wifiwatcher.service not seen in $PWD" && exit
+    [ -f "$PWD/service/systemd/wifiwatcher.timer" ] && cp "$PWD/service/systemd/wifiwatcher.timer" ~/.config/systemd/user/wifiwatcher.timer && echo "Timer file added." || echo "ERROR: wifiwatcher.timer not seen in $PWD" && exit
+    echo "Modifying the path to this script (you'll need to modify the service file if you move the repo on your system)..."
+    sleep 3
+    sed -i -- "s/SERVICE_PATH/$PWD\/service\/systemd\/wifiwatcher.service/g" ~/.config/systemd/user/wifiwatcher.service
+    echo "Enabling service..."
+    systemctl --user enable wifiwatcher && echo "Enabling scheduler (default every 10min, see wiki for adjusting)"
+    systemctl --user enable wifiwatcher.timer && echo "Starting services..."
+    systemctl --user start wifiwatcher && systemctl --user enable wifiwatcher.timer && echo "Service setup complete!"
+  fi
 fi
