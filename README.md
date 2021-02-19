@@ -37,23 +37,4 @@ Additional options:
 ## Customizing
 All customizations are optional, in most cases, the script will work out of the box.
 
-<<<<<<< HEAD
-Config options are in the top of the script, `channel-watch`
-- **DISPLAY_CHANNEL_BSSID** = Turn the BSSID, bars and manufacturer info on or off
-  - `1` = maximum detail
-  - `0` = only active channel count (besides yourself) is displayed
-- **MAC_LIST** = (optional) Specify a local cache of the [standards-oui.ieee.org](http://standards-oui.ieee.org) list, if you don't want your machines pulling it from the web
-  - Example value: `http://company.example.com/mac.txt`
-  - `""` = Pulled from the web and cached for later use
-- **AP_LIST** = (optional) Reference a list of internal access points by their BSSID; assign custom, friendly names
-  - Two columns, tab separated; with colons `:` stripped
-  - See [arrays.txt](https://github.com/angela-d/wifi-channel-watcher/blob/main/examples/arrays.txt) for example usage
-  - Example value: `http://company.example.com/arrays.txt`
-- **INTERNAL_CHECK** = (optional) An internal resource on your private network, not accessible to the internet that's used to determine whether or not to use internal lists, or pull a list off the web for caching
-  - Example value: `print.example.com`
-- Custom icon: default image is from [OieIcons](https://www.pling.com/p/1299058/), you can add your own by replacing **icon.svg**:
-  - Main folder (see [icon.svg](https://github.com/angela-d/wifi-channel-watcher/blob/main/icon.svg))
-  - After first run, the icon is copied to: `~/.config/wifi-channel-watcher/icon.svg` -- this is the one you'd want to replace for an immediate change; otherwise, the icon in the root directory only copies over once the `~/.config/wifi-channel-watcher/` folder isn't detected
-  - Overall text, image and appearance of the notification will vary depending on what desktop theme you're using
-
   - **Detailed customizing options:** [Customizing wiki](https://github.com/angela-d/wifi-channel-watcher/wiki/Customizing)
