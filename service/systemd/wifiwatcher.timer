@@ -1,0 +1,9 @@
+[Unit]
+Description=Run wifi watcher every 10 min
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10m 
+
+[Install]
+WantedBy=timers.target
