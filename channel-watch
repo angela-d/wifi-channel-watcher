@@ -12,17 +12,6 @@ then
   source "$CACHE_DIR"config.conf
 fi
 
-# get the channel in use
-INTERFACE="$(cat < /proc/net/wireless | awk '{print $1}' | tail -n1 | tr -d .:)"
-
-# wifi active?
-if [ "$INTERFACE" == "face" ];
-then
-  echo "Wifi interface is inactive.  Exiting."
-  [ "$DEBUG" == "1" ] && debug "0" "Interface: $INTERFACE triggered."
-  exit 0
-fi
-
 function debug() {
   if [ "$1" == "1" ];
   then
@@ -36,7 +25,20 @@ function debug() {
   echo "$STATE: $(date) $2" >> "$DEBUG_PATH"
 }
 
+# get the channel in use
 [ "$DEBUG" == "1" ] && debug "1" "-- Start of debug for this run --"
+
+INTERFACE="$(cat < /proc/net/wireless | awk '{print $1}' | tail -n1 | tr -d .:)"
+
+[ "$DEBUG" == "1" ] && debug "0" "Interface check: $INTERFACE triggered."
+
+# wifi active?
+if [ "$(nmcli con show --active | awk '$3 ~ "wifi"')" == "" ];
+then
+  echo "Wifi interface appears to be inactive.  Using a Pi?"
+  echo "For troubleshooting: https://github.com/angela-d/wifi-channel-watcher/wiki/Troubleshooting"
+  exit 0
+fi
 
 # check if internal resources are accessible, general local cache
 [[ ! $INTERNAL_CHECK == ""  && "$(ping -c 1 "$INTERNAL_CHECK")" ]] && INTERNAL_CONN="yes" || INTERNAL_CONN=""
@@ -94,11 +96,11 @@ CHANNEL="$(/sbin/iw dev "$INTERFACE" info | grep channel | awk '{print $2}')"
 #
 # get a channel list into an array (needs work)
 IFS=$'\n'
-declare -a CHAN=($(nmcli -f chan dev wifi list | sort | uniq -c))
-[ "$DEBUG" == "1" ] && debug "2" "Unprocessed query: $(nmcli -f chan dev wifi list | sort | uniq -c)"
+declare -a CHAN=($(nmcli -g chan dev wifi list | sort | uniq -c))
+[ "$DEBUG" == "1" ] && debug "2" "Unprocessed query: $(nmcli -g chan dev wifi list | sort | uniq -c)"
 
 # isolate the active usage
-for ACTIVE_CHANNEL in "${CHAN[@]}"
+for ACTIVE_CHANNEL in "${CHAN[@]}";
 do
   if [[ $ACTIVE_CHANNEL =~ $CHANNEL ]];
   then
