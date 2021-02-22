@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=/dev/null
 
 CACHE_DIR="$HOME/.config/wifi-channel-watcher/"
 # pull in user config (or create it, if it doesn't exist)
@@ -96,6 +97,7 @@ CHANNEL="$(/sbin/iw dev "$INTERFACE" info | grep channel | awk '{print $2}')"
 #
 # get a channel list into an array (needs work)
 IFS=$'\n'
+# shellcheck disable=SC2207
 declare -a CHAN=($(nmcli -g chan dev wifi list | sort | uniq -c))
 [ "$DEBUG" == "1" ] && debug "2" "Unprocessed query: $(nmcli -g chan dev wifi list | sort | uniq -c)"
 
@@ -122,6 +124,7 @@ then
   then
     [ "$DEBUG" == "1" ] && debug "1" "DISPLAY_CHANNEL_BSSID is true"
     # redundant loop; merge with CHAN at some point
+    # shellcheck disable=SC2207
     declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wifi list | awk -v CHANNEL="$CHANNEL" -v ME="$ME" '$1 != ME && $3 == CHANNEL'))
 
     for NEIGHBOR in "${DETAILED[@]}"
@@ -143,8 +146,41 @@ then
     BSSID_DETAIL=""
   fi
 
+  # assess a lesser congested channel (vacant only)
+  if [ "$SUGGEST_CHANNEL" == "1" ];
+  then
+    function arraydiff() {
+      # thx fabian lee
+      # https://fabianlee.org/2020/09/06/bash-difference-between-two-arrays/
+      awk 'BEGIN{RS=ORS=" "}
+           {NR==FNR?a[$0]++:a[$0]--}
+           END{for(k in a)if(a[k])print k}' <(echo -n "${!1}") <(echo -n "${!2}")
+    }
+
+    # look for vacant 5GHz channels; ignoring dfs/radar + wider channels incompatible w/ some devices
+    # shellcheck disable=SC2034
+    VACANTS=(36 40 44 48 149 153 157 161 165)
+    IGNORE=(
+      1 2 3 4 5 6 7 8 9 10 11 12 13 52 56 60 64 100 104 108 112 116 120 124 128 132 136 140 38 46 54 62 102 110 118 126 134 134 142 151 159 42 58 106 122 138 155
+    )
+
+    # splitter for the arraydiff
+    IFS=' '
+    # compare vacants arr w/ chan array to spot any unused channels
+    # shellcheck disable=SC2207
+    SUGGESTING=($(arraydiff CHAN[@] VACANTS[@]))
+
+    for ANALYZE in "${SUGGESTING[@]}";
+    do
+      [ "$DEBUG" == "1" ] && debug "1" "Channel suggestion (unfiltered/active channel): $ANALYZE"
+      [[ ! "${IGNORE[*]}" =~ ${ANALYZE} ]] && SUGGEST="$ANALYZE"
+    done
+
+    [ ! -z "$SUGGEST" ] && SUGGESTED="\\nBetter channel: $SUGGEST" || SUGGESTED="no vacant channels seen"
+  fi
+
   # format the message to prevent notify-send from throwing errors
-  PROMPT="$TOTAL_ACTIVE neighboring APs also on channel $CHANNEL\\n$BSSID_DETAIL"
+  PROMPT="$TOTAL_ACTIVE neighboring APs also on channel $CHANNEL\\n$BSSID_DETAIL $SUGGESTED"
   [ "$DEBUG" == "1" ] && debug "1" "Prompt output: $PROMPT"
 
   # send the notification
@@ -165,7 +201,7 @@ then
     [ -f "$PWD/service/systemd/wifiwatcher.service" ] && cp "$PWD/service/systemd/wifiwatcher.service" ~/.config/systemd/user/wifiwatcher.service && echo "Unit file added."
     [ -f "$PWD/service/systemd/wifiwatcher.timer" ] && cp "$PWD/service/systemd/wifiwatcher.timer" ~/.config/systemd/user/wifiwatcher.timer && echo "Timer file added."
     echo "Modifying the path to this script (you'll need to modify the service file if you move the repo on your system)..."
-    echo -e "\t$PWD/channel-watch"
+    echo -e "\\t$PWD/channel-watch"
     sleep 3
     sed -i -- "s|SERVICE_PATH|$PWD/channel-watch|g" ~/.config/systemd/user/wifiwatcher.service
     echo "Enabling service..."
