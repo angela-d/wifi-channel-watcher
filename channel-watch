@@ -90,6 +90,8 @@ function apsearch() {
 # get nearby channel usage
 ME="$(/sbin/iwgetid -r)"
 CHANNEL="$(/sbin/iw dev "$INTERFACE" info | grep channel | awk '{print $2}')"
+# 2g or 5g? use for channel suggestions, if enabled
+RADIO="$(echo $CHANNEL | awk '$1 ~ /^1$|^6$|^11$/' | sort | uniq -c | sort -n)"
 [ "$DEBUG" == "1" ] && debug "1" "My SSID: $ME - Channel: $CHANNEL"
 
 # iw scan needs elevation to scan, so nmcli is better to use, otherwise you have an equal amount of work to do to
@@ -111,6 +113,7 @@ do
     # it will always be +1 because of me, so subtract
     TOTAL_ACTIVE=$((TOTAL_ACTIVE-1))
     [ "$DEBUG" == "1" ] && debug "1" "On my channel (incl me) extract: $ACTIVE_CHANNEL"
+    break
   fi
 done
 
@@ -157,12 +160,22 @@ then
            END{for(k in a)if(a[k])print k}' <(echo -n "${!1}") <(echo -n "${!2}")
     }
 
-    # look for vacant 5GHz channels; ignoring dfs/radar + wider channels incompatible w/ some devices
-    # shellcheck disable=SC2034
-    VACANTS=(36 40 44 48 149 153 157 161 165)
-    IGNORE=(
-      1 2 3 4 5 6 7 8 9 10 11 12 13 52 56 60 64 100 104 108 112 116 120 124 128 132 136 140 38 46 54 62 102 110 118 126 134 134 142 151 159 42 58 106 122 138 155
-    )
+    # if radio is unset, user is on a 5g radio
+    if [ ! "$RADIO" ];
+    then
+      # look for vacant 5GHz channels; ignoring dfs/radar + wider channels incompatible w/ some devices
+      # shellcheck disable=SC2034
+      VACANTS=(36 40 44 48 149 153 157 161 165)
+      IGNORE=(
+        1 2 3 4 5 6 7 8 9 10 11 12 13 52 56 60 64 100 104 108 112 116 120 124 128 132 136 140 38 46 54 62 102 110 118 126 134 134 142 151 159 42 58 106 122 138 155
+      )
+    else
+      # 2g user
+      # shellcheck disable=SC2034
+      VACANTS=(1 6 11)
+      # since 2g is so limited, ignore only overlapping channels or channels not in use except in limited locations + 5g
+      IGNORE=(2 3 4 5 7 8 9 10 12 13 14 16 36 40 44 48 149 153 157 161 165 52 56 60 64 100 104 108 112 116 120 124 128 132 136 140 38 46 54 62 102 110 118 126 134 134 142 151 159 42 58 106 122 138 155)
+    fi
 
     # splitter for the arraydiff
     IFS=' '
@@ -176,16 +189,35 @@ then
       [[ ! "${IGNORE[*]}" =~ ${ANALYZE} ]] && SUGGEST="$ANALYZE"
     done
 
-    [ ! -z "$SUGGEST" ] && SUGGESTED="\\nBetter channel: $SUGGEST" || SUGGESTED="no vacant channels seen"
+    IFS=$'\n'
+    if [ -z "$SUGGEST" ] && [ "$RADIO" ];
+      then
+      # make a 2g suggestion based off the least-trafficked channel
+      CONGESTED="$(nmcli -f chan dev wifi list | awk '$1 ~ /^1$|^6$|^11$/' | sort | uniq -c | sort -n | head -n1)"
+      SUGGEST="$(printf "%s" $CONGESTED | awk '{ print $2 }')"
+      [ "$DEBUG" == "1" ] && debug "1" "INFO: Congested 2G chanels: $CONGESTED"
+    elif [ ! "$RADIO" ];
+    then
+      # make a 5g suggestion based off the least-trafficked channel
+      CONGESTED="$(nmcli -f chan dev wifi list | awk '$1 ~ /^36$|^40$|^44$|^48$|^149$|^153$|^157$|^161$|^165$/' | sort | uniq -c | sort -n | head -n1)"
+      SUGGEST="$(printf "%s" $CONGESTED | awk '{ print $2 }')"
+    fi
+
+    # if the suggested channel is the active channel, don't notify
+    [ "$SUGGESTED" == "$CHANNEL" ] && HIDE_PROMPT="true" && [ "$DEBUG" == "1" ] && debug "1" "You are on the best channel: $SUGGESTED"
+    SUGGESTED="\\nBetter channel: $SUGGEST"
   fi
 
+  if [ -z "$HIDE_PROMPT" ];
+  then
   # format the message to prevent notify-send from throwing errors
-  PROMPT="$TOTAL_ACTIVE neighboring APs also on channel $CHANNEL\\n$BSSID_DETAIL $SUGGESTED"
-  [ "$DEBUG" == "1" ] && debug "1" "Prompt output: $PROMPT"
+    PROMPT="$TOTAL_ACTIVE neighboring APs also on channel $CHANNEL\\n$BSSID_DETAIL $SUGGESTED"
+    [ "$DEBUG" == "1" ] && debug "1" "Prompt output: $PROMPT"
 
-  # send the notification
-  notify-send -i "$HOME/.config/wifi-channel-watcher/icon.svg" "Wifi Channel Not Optimal" \
-  -u critical \ "$PROMPT"
+    # send the notification
+    notify-send -i "$HOME/.config/wifi-channel-watcher/icon.svg" "Wifi Channel Not Optimal" \
+    -u critical \ "$PROMPT"
+  fi
 fi
 
 [ "$DEBUG" == "1" ] && debug "1" "INFO: -- End of debug for this run --"
