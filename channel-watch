@@ -34,9 +34,9 @@ INTERFACE="$(cat < /proc/net/wireless | awk '{print $1}' | tail -n1 | tr -d .:)"
 [ "$DEBUG" == "1" ] && debug "0" "Interface check: $INTERFACE triggered."
 
 # wifi active?
-if [ "$(nmcli con show --active | awk '$3 ~ "wifi"')" == "" ];
+if [ "$(nmcli con show --active | awk '$3 ~ "wifi" || "*wireless"')" == "" ];
 then
-  echo "Wifi interface appears to be inactive.  Using a Pi?"
+  echo "Wifi interface appears to be inactive or is not detected.  Using a Pi?"
   echo "For troubleshooting: https://github.com/angela-d/wifi-channel-watcher/wiki/Troubleshooting"
   exit 0
 fi
