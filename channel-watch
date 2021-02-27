@@ -100,8 +100,8 @@ RADIO="$(echo $CHANNEL | awk '$1 ~ /^1$|^6$|^11$/' | sort | uniq -c | sort -n)"
 # get a channel list into an array (needs work)
 IFS=$'\n'
 # shellcheck disable=SC2207
-declare -a CHAN=($(nmcli -g chan dev wifi list | sort | uniq -c))
-[ "$DEBUG" == "1" ] && debug "2" "Unprocessed query: $(nmcli -g chan dev wifi list | sort | uniq -c)"
+declare -a CHAN=($(nmcli -g chan dev wi list | sort | uniq -c))
+[ "$DEBUG" == "1" ] && debug "2" "Unprocessed query: $(nmcli -g chan dev wi list | sort | uniq -c)"
 
 # isolate the active usage
 for ACTIVE_CHANNEL in "${CHAN[@]}";
@@ -128,7 +128,7 @@ then
     [ "$DEBUG" == "1" ] && debug "1" "DISPLAY_CHANNEL_BSSID is true"
     # redundant loop; merge with CHAN at some point
     # shellcheck disable=SC2207
-    declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wifi list | awk -v CHANNEL="$CHANNEL" -v ME="$ME" '$1 != ME && $3 == CHANNEL'))
+    declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wi list | awk -v CHANNEL="$CHANNEL" -v ME="$ME" '$1 != ME && $3 == CHANNEL'))
 
     for NEIGHBOR in "${DETAILED[@]}"
     do
@@ -193,13 +193,13 @@ then
     if [ -z "$SUGGEST" ] && [ "$RADIO" ];
       then
       # make a 2g suggestion based off the least-trafficked channel
-      CONGESTED="$(nmcli -f chan dev wifi list | awk '$1 ~ /^1$|^6$|^11$/' | sort | uniq -c | sort -n | head -n1)"
+      CONGESTED="$(nmcli -f chan dev wi list | awk '$1 ~ /^1$|^6$|^11$/' | sort | uniq -c | sort -n | head -n1)"
       SUGGEST="$(printf "%s" $CONGESTED | awk '{ print $2 }')"
       [ "$DEBUG" == "1" ] && debug "1" "INFO: Congested 2G chanels: $CONGESTED"
     elif [ ! "$RADIO" ];
     then
       # make a 5g suggestion based off the least-trafficked channel
-      CONGESTED="$(nmcli -f chan dev wifi list | awk '$1 ~ /^36$|^40$|^44$|^48$|^149$|^153$|^157$|^161$|^165$/' | sort | uniq -c | sort -n | head -n1)"
+      CONGESTED="$(nmcli -f chan dev wi list | awk '$1 ~ /^36$|^40$|^44$|^48$|^149$|^153$|^157$|^161$|^165$/' | sort | uniq -c | sort -n | head -n1)"
       SUGGEST="$(printf "%s" $CONGESTED | awk '{ print $2 }')"
     fi
 
