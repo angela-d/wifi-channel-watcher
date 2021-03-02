@@ -21,8 +21,6 @@ Additional options:
 ![Wifi channel warning - minimum detail](img/min-detail.png)
 ***
 
-> If you're in an extremely dense area, you may want to customize the threshold from `"$TOTAL_ACTIVE" -gt 0` to something that better suits your environment.
-
 ## Installation
 This script can be cloned and run manually, or added as a service that runs on a scheduled interval.
 
@@ -40,6 +38,13 @@ See [detailed install instructions](https://github.com/angela-d/wifi-channel-wat
   ```bash
   /your/directory/path/to/wifi-channel-watcher/channel-watch
   ```
+
+## Upgrading
+If you previously cloned this repo (prior to v1.1.0), you'll need to add a new `THRESHOLD` variable to your `~/.config/wifi-channel-watcher/config.conf` file:
+```bash
+THRESHOLD="1"
+```
+Threshold is the *greater than or equal to* value, for how many are on your channel (excluding you) before you get a notification.
 
 ## Customizing
 All customizations are optional, in most cases, the script will work out of the box.

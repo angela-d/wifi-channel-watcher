@@ -119,7 +119,7 @@ done
 
 [ "$DEBUG" == "1" ] && debug "1" "Total on my channel (excl me): $TOTAL_ACTIVE"
 # check for notify-send and send a notification to the user
-if [ "$TOTAL_ACTIVE" -gt 0 ] && [ -f /usr/bin/notify-send ];
+if [ "$TOTAL_ACTIVE" -ge "$THRESHOLD" ] && [ -f /usr/bin/notify-send ];
 then
   [ "$DEBUG" == "1" ] && debug "1" "/usr/bin/notify-send exists"
   # display the ssid, if enabled
@@ -196,7 +196,7 @@ then
       CONGESTED="$(nmcli -f chan dev wi list | awk '$1 ~ /^1$|^6$|^11$/' | sort | uniq -c | sort -n | head -n1)"
       SUGGEST="$(printf "%s" $CONGESTED | awk '{ print $2 }')"
       [ "$DEBUG" == "1" ] && debug "1" "INFO: Congested 2G chanels: $CONGESTED"
-    elif [ ! "$RADIO" ];
+    elif [ -z "$SUGGEST" ] && [ ! "$RADIO" ];
     then
       # make a 5g suggestion based off the least-trafficked channel
       CONGESTED="$(nmcli -f chan dev wi list | awk '$1 ~ /^36$|^40$|^44$|^48$|^149$|^153$|^157$|^161$|^165$/' | sort | uniq -c | sort -n | head -n1)"
