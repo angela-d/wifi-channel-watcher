@@ -40,7 +40,7 @@ See [detailed install instructions](https://github.com/angela-d/wifi-channel-wat
   ```
 
 ## Upgrading
-If you previously cloned this repo (prior to v1.1.0), you'll need to add a new `THRESHOLD` variable to your `~/.config/wifi-channel-watcher/config.conf` file:
+If you previously cloned this repo (prior to v1.2.0), you'll need to add a new `THRESHOLD` variable to your `~/.config/wifi-channel-watcher/config.conf` file:
 ```bash
 THRESHOLD="1"
 ```
