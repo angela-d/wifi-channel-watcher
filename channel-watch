@@ -160,21 +160,17 @@ then
            END{for(k in a)if(a[k])print k}' <(echo -n "${!1}") <(echo -n "${!2}")
     }
 
-    # if radio is unset, user is on a 5g radio
+    IFS='|'
+    # if radio is unset, user is on a 5g radio; channel selections in user config
     if [ ! "$RADIO" ];
     then
       # look for vacant 5GHz channels; ignoring dfs/radar + wider channels incompatible w/ some devices
-      # shellcheck disable=SC2034
-      VACANTS=(36 40 44 48 149 153 157 161 165)
-      IGNORE=(
-        1 2 3 4 5 6 7 8 9 10 11 12 13 52 56 60 64 100 104 108 112 116 120 124 128 132 136 140 38 46 54 62 102 110 118 126 134 134 142 151 159 42 58 106 122 138 155
-      )
+      read -a VACANTS <<< "$CHANNELS_5G"
+      read -a IGNORE <<< "$IGNORE_5G"
     else
-      # 2g user
-      # shellcheck disable=SC2034
-      VACANTS=(1 6 11)
-      # since 2g is so limited, ignore only overlapping channels or channels not in use except in limited locations + 5g
-      IGNORE=(2 3 4 5 7 8 9 10 12 13 14 16 36 40 44 48 149 153 157 161 165 52 56 60 64 100 104 108 112 116 120 124 128 132 136 140 38 46 54 62 102 110 118 126 134 134 142 151 159 42 58 106 122 138 155)
+      # 2GHz user
+      read -a VACANTS <<< "$CHANNELS_2G"
+      read -a IGNORE <<< "$IGNORE_2G"
     fi
 
     # splitter for the arraydiff
@@ -182,13 +178,21 @@ then
     # compare vacants arr w/ chan array to spot any unused channels
     # shellcheck disable=SC2207
     SUGGESTING=($(arraydiff CHAN[@] VACANTS[@]))
+    [ "$DEBUG" == "1" ] && debug "1" "Channels that appear vacant: ${SUGGESTING[*]}"
 
     for ANALYZE in "${SUGGESTING[@]}";
     do
       [ "$DEBUG" == "1" ] && debug "1" "Channel suggestion (unfiltered/active channel): $ANALYZE"
-      [[ ! "${IGNORE[*]}" =~ ${ANALYZE} ]] && SUGGEST="$ANALYZE"
+
+      # 40 gets regex clipped due to the presence of dfs 140 in ignore, despite shellcheck claiming this is a literal match
+      # shellcheck disable=SC2076
+      if [[ ! ${IGNORE[*]} =~ "$ANALYZE" ]] || [[ "$ANALYZE" -eq 40  && ! "$RADIO" ]]
+      then
+        SUGGEST="$ANALYZE"
+      fi
     done
 
+    [ "$DEBUG" == "1" ] && debug "1" "Channel to suggest: $SUGGEST"
     IFS=$'\n'
     if [ -z "$SUGGEST" ] && [ "$RADIO" ];
       then
