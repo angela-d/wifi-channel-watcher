@@ -79,7 +79,9 @@ function macsearch() {
 function apsearch() {
   if [ "$INTERNAL_CONN" == "yes" ];
   then
+    [ "$DEBUG" == "1" ] && debug "1" "AP List: $AP_LIST"
     AP=$(echo "$1" | tr -d ':')
+    [ "$DEBUG" == "1" ] && debug "1" "Raw BSSID: $AP"
     AP=$(curl -sS "$AP_LIST" | grep -i "$AP" | head -n1 | awk '{ print $1 }')
 
     echo "$AP"
@@ -128,7 +130,7 @@ then
     [ "$DEBUG" == "1" ] && debug "1" "DISPLAY_CHANNEL_BSSID is true"
     # redundant loop; merge with CHAN at some point
     # shellcheck disable=SC2207
-    declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wi list | awk -v CHANNEL="$CHANNEL" -v ME="$ME" '$1 != ME && $3 == CHANNEL'))
+    declare -a DETAILED=($(nmcli -f ssid,bssid,chan,bars dev wi list | awk -v CHANNEL="$CHANNEL" -v ME="$ME" '$3 == CHANNEL' | tail -n 1))
 
     for NEIGHBOR in "${DETAILED[@]}"
     do
@@ -136,12 +138,13 @@ then
       # ssid is sanitized since it returns values to the screen created by untrusted individuals, because, you never know :)
       [ "$SSID" == "--" ] && SSID="[hidden]" || SSID="${SSID//[^a-zA-Z0-9\_-]/}"
       BSSID="$(printf "%s" "$NEIGHBOR" | awk '{ print $2 }')"
+      [ "$DEBUG" == "1" ] && debug "1" "BSSID in neighbor loop: $BSSID"
       # get the router manufacturer
-      BSSID=$(macsearch "$BSSID")
+      BSSID_HUMAN_READABLE=$(macsearch "$BSSID")
       BARS="$(printf "%s" "$NEIGHBOR" | awk '{ print $4 }')"
       [[ "$INTERNAL_CONN" == "yes" ]] && AP_NAME=$(apsearch "$BSSID") || AP_NAME=""
 
-      BSSID_DETAIL+="\\n$BARS $SSID - $BSSID\\n$AP_NAME"
+      BSSID_DETAIL+="\\n$BARS $SSID - $BSSID_HUMAN_READABLE\\n$AP_NAME"
       [ "$DEBUG" == "1" ] && debug "1" "BSSID DETAIL: $BSSID_DETAIL"
     done
   else
